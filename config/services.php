@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'oracle_bi' => [
+        'endpoint' => env('ORACLE_BI_ENDPOINT'),
+        'user' => env('ORACLE_BI_USER'),
+        'password' => env('ORACLE_BI_PASSWORD'),
+    ],
+
 ];
