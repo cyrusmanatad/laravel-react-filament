@@ -1,5 +1,4 @@
 import { dashboard, login, register } from '@/routes';
-import { dashboard as adminDashboard } from '@/routes/filament/admin/pages';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 
