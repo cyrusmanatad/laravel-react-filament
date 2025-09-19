@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\API\OrderEntryDetailsController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -12,6 +14,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
+    Route::get('orders/create', function () {
+        return Inertia::render('create-order');
+    })->name('create-order');
+
+    // Order Entry Routes
+    Route::get('/orders/create', [OrderController::class, 'create'])->name('orders.create');
+    Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
 });
 
 require __DIR__.'/settings.php';
@@ -30,3 +39,10 @@ Route::name('reports.')->group(function () {
     Route::get('/reports/uts-sku-master', [ReportController::class, 'fetchUtsSkuReport'])->name('uts-sku');
     Route::get('/reports/all', [ReportController::class, 'fetchAllReport'])->name('all-reports');
 });
+
+Route::get('/order-type', [OrderEntryDetailsController::class, 'getOrderTypes'])->name('api.order.types');
+Route::post('/divisions', [OrderEntryDetailsController::class, 'getDivisions'])->name('api.divisions');
+Route::get('/personnels', [OrderEntryDetailsController::class, 'getPersonnels'])->name('api.personnels');
+Route::get('/plants', [OrderEntryDetailsController::class, 'getPlants'])->name('api.plants');
+Route::post('/customers', [OrderEntryDetailsController::class, 'getCustomers'])->name('api.customers');
+Route::post('/skus', [OrderEntryDetailsController::class, 'getSkus'])->name('api.skus');

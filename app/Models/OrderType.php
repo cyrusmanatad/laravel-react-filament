@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class OrderType extends Model
 {
-    use SoftDeletes;
+    // use SoftDeletes;
     /**
      * The attributes that are mass assignable.
      *

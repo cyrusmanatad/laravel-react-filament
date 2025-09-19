@@ -81,22 +81,25 @@ export default function Welcome() {
                                     <span>&copy; 2025. UNAHCO. All rights reserved.</span>
                                 </li>
                             </ul>
-                            <ul className="flex gap-3 text-sm leading-normal">
-                                <li className="flex items-center justify-end gap-4">
-                                    <Link
-                                        href={login()}
-                                        className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
-                                    >
-                                        Log in
-                                    </Link>
-                                    <Link
-                                        href={register()}
-                                        className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                                    >
-                                        Register
-                                    </Link>
-                                </li>
-                            </ul>
+
+                            {!auth.user && (
+                                <ul className="flex gap-3 text-sm leading-normal">
+                                    <li className="flex items-center justify-end gap-4">
+                                        <Link
+                                            href={login()}
+                                            className="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
+                                        >
+                                            Log in
+                                        </Link>
+                                        <Link
+                                            href={register()}
+                                            className="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                                        >
+                                            Register
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )}
                         </div>
                         <div className="relative -mb-px aspect-[335/376] w-full shrink-0 overflow-hidden rounded-t-lg bg-[#fff2f2] lg:mb-0 lg:-ml-px lg:aspect-auto lg:w-[438px] lg:rounded-t-none lg:rounded-r-lg dark:bg-[#B4E18E]">
                             <svg
