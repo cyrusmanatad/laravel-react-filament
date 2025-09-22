@@ -11,6 +11,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
 import { create } from '@/routes/orders';
+import { personnels as personnelsRoute, divisions as divisionsRoute, skus as skusRoute, customers as customersRoute, plants as plantsRoute} from '@/routes/api';
+import { types as orderTypesRoute } from '@/routes/api/order';
 import { type BreadcrumbItem } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head } from '@inertiajs/react';
@@ -54,7 +56,7 @@ const formSchema = z.object({
     delivery_mode: z.string({
         error: 'You need to select a delivery mode.',
     }),
-    quantity: z.number({
+    quantity: z.string({
         error: 'Please input a quantity.',
     }),
 });
@@ -75,41 +77,51 @@ export default function CreateOrder() {
     const [branchPlants, setBranchPlants] = useState<{ value: string; label: string }[]>([]);
     const [divisions, setDivisions] = useState<{ value: string; label: string }[]>([]);
     const [customers, setCustomers] = useState<{ value: string; label: string }[]>([]);
+    const [skus, setSkus] = useState<{ value: string; label: string }[]>([]);
+    const [isOrderTypeLoading, setIsOrderTypeLoading] = useState(true);
+    const [isPersonnelsLoading, setIsPersonnelsLoading] = useState(true);
+    const [isBranchPlantLoading, setIsBranchPlantLoading] = useState(true);
     const [isCustomerLoading, setIsCustomerLoading] = useState(false);
     const [isDivisionLoading, setIsDivisionLoading] = useState(false);
-    const skus = [{ value: 'sku1', label: 'SKU 1' }];
+    const [isSkuLoading, setIsSkuLoading] = useState(false);
 
     useEffect(() => {
         axios
-            .get('/order-type')
+            .get(orderTypesRoute().url)
             .then((response) => setOrderTypes(response.data))
-            .catch((error) => console.error('Error fetching options:', error));
+            .catch((error) => console.error('Error fetching options:', error))
+            .finally(() => setIsOrderTypeLoading(false));
 
         axios
-            .get('/personnels')
+            .get(personnelsRoute().url)
             .then((response) => setPersonnels(response.data))
-            .catch((error) => console.error('Error fetching options:', error));
+            .catch((error) => console.error('Error fetching options:', error))
+            .finally(() => setIsPersonnelsLoading(false));
 
         axios
-            .get('/plants')
+            .get(plantsRoute().url)
             .then((response) => setBranchPlants(response.data))
-            .catch((error) => console.error('Error fetching options:', error));
+            .catch((error) => console.error('Error fetching options:', error))
+            .finally(() => setIsBranchPlantLoading(false));
     }, []);
 
     const populateDivisionOptions = (psrCode: string) => {
         form.setValue('div_code', ''); // Reset division
-        
+        form.setValue('cust_code', ''); // Reset customer
+        setCustomers([]);
+        setSkus([]);
+
         if (psrCode) {
             setIsDivisionLoading(true);
             axios
-                .post('/divisions', {
+                .post(divisionsRoute().url, {
                     personnel_code: psrCode,
                 }) // Assuming an API route like this
                 .then((response) => {
                     setDivisions(response.data);
                 })
                 .catch((error) => {
-                    console.error('Error fetching customers:', error);
+                    console.error('Error fetching divisions:', error);
                     setDivisions([]);
                 })
                 .finally(() => {
@@ -120,15 +132,16 @@ export default function CreateOrder() {
         }
     };
 
-    const populateCustomerOptions = (custCode: string) => {
-        form.setValue('div_code', ''); // Reset division
-        
-        if (custCode) {
+    const populateCustomerOptions = (divisionCode: string) => {
+        form.setValue('cust_code', ''); // Reset customer
+        setSkus([]);
+
+        if (divisionCode) {
             setIsCustomerLoading(true);
             axios
-                .post('/customers', {
+                .post(customersRoute().url, {
                     personnel_code: form.getValues('psr_code'),
-                    division_code: custCode,
+                    division_code: divisionCode,
                 }) // Assuming an API route like this
                 .then((response) => {
                     setCustomers(response.data);
@@ -142,6 +155,32 @@ export default function CreateOrder() {
                 });
         } else {
             setCustomers([]);
+        }
+    };
+
+    const populateSkuOptions = () => {
+        const divCode = form.getValues('div_code');
+        const custCode = form.getValues('cust_code');
+        const branchCode = form.getValues('branch_code');
+
+        if (divCode && custCode && branchCode) {
+            setIsSkuLoading(true);
+            axios
+                .post(skusRoute().url, {
+                    division_code: divCode,
+                    customer_code: custCode,
+                    branch_code: branchCode,
+                })
+                .then((response) => {
+                    setSkus(response.data);
+                })
+                .catch((error) => {
+                    console.error('Error fetching SKUs:', error);
+                    setSkus([]);
+                })
+                .finally(() => {
+                    setIsSkuLoading(false);
+                });
         }
     };
 
@@ -183,8 +222,9 @@ export default function CreateOrder() {
                                                             field.onChange(value);
                                                             populateDivisionOptions(value);
                                                         }}
-                                                        placeholder="Select personnel..."
+                                                        placeholder={isOrderTypeLoading ? 'Loading personnels...' : 'Select personnel...'}
                                                         searchPlaceholder="Search personnel..."
+                                                        disabled={isPersonnelsLoading}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -201,8 +241,9 @@ export default function CreateOrder() {
                                                         options={orderTypes}
                                                         // value={field.value}
                                                         onChange={field.onChange}
-                                                        placeholder="Select order type..."
+                                                        placeholder={isOrderTypeLoading ? "Loading order types..." : "Select order type..."}
                                                         searchPlaceholder="Search order type..."
+                                                        disabled={isOrderTypeLoading}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -228,7 +269,7 @@ export default function CreateOrder() {
                                                                 : "Select division..."
                                                         }
                                                         searchPlaceholder="Search division..."
-                                                        disabled={isDivisionLoading || divisions.length === 0}
+                                                        disabled={isDivisionLoading}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -244,14 +285,17 @@ export default function CreateOrder() {
                                                     <Combobox
                                                         options={customers}
                                                         // value={field.value}
-                                                        onChange={field.onChange}
+                                                        onChange={(value) => {
+                                                            field.onChange(value);
+                                                            populateSkuOptions();
+                                                        }}
                                                         placeholder={
                                                             isCustomerLoading
                                                                 ? 'Loading customers...'
                                                                 : 'Select customer...'
                                                         }
                                                         searchPlaceholder="Search customer..."
-                                                        disabled={isCustomerLoading || customers.length === 0}
+                                                        disabled={isCustomerLoading}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -267,9 +311,13 @@ export default function CreateOrder() {
                                                     <Combobox
                                                         options={branchPlants}
                                                         // value={field.value}
-                                                        onChange={field.onChange}
-                                                        placeholder="Select branch plant..."
+                                                        onChange={(value) => {
+                                                            field.onChange(value);
+                                                            populateSkuOptions();
+                                                        }}
+                                                        placeholder={isBranchPlantLoading ? "Loading branch plant..." : "Select branch plant..."}
                                                         searchPlaceholder="Search branch plant..."
+                                                        disabled={isBranchPlantLoading}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -288,7 +336,7 @@ export default function CreateOrder() {
                                                                 <Button
                                                                     variant={'outline'}
                                                                     className={cn(
-                                                                        'w-full pl-3 text-left font-normal',
+                                                                        'w-full pl-3 text-left font-normal aria-invalid:border-ring',
                                                                         !field.value && 'text-muted-foreground',
                                                                     )}
                                                                 >
@@ -322,27 +370,27 @@ export default function CreateOrder() {
                                                         <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="">
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="pickup" />
+                                                                    <RadioGroupItem value="pickup" className='aria-invalid:border-grey' />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal">Pick-up</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Pick-up</FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="delivery" />
+                                                                    <RadioGroupItem value="delivery" className='aria-invalid:border-grey' />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal">Delivery</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Delivery</FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="sea_shippment" />
+                                                                    <RadioGroupItem value="sea_shippment" className='aria-invalid:border-grey' />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal">Shipment by Sea</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Shipment by Sea</FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="air_shipment" />
+                                                                    <RadioGroupItem value="air_shipment" className='aria-invalid:border-grey' />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal">Shipment by Air</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Shipment by Air</FormLabel>
                                                             </FormItem>
                                                         </RadioGroup>
                                                     </FormControl>
@@ -381,8 +429,9 @@ export default function CreateOrder() {
                                                             options={skus}
                                                             // value={field.value}
                                                             onChange={field.onChange}
-                                                            placeholder="Select SKU..."
+                                                            placeholder={isSkuLoading ? 'Loading SKUs...' : 'Select SKU...'}
                                                             searchPlaceholder="Search SKU..."
+                                                            disabled={isSkuLoading}
                                                         />
                                                         <FormMessage />
                                                     </FormItem>
@@ -419,15 +468,19 @@ export default function CreateOrder() {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="pt-4 sm:col-span-6">
+                                        <div className="pt-4 sm:col-span-6 flex justify-end">
                                             <div className="flex items-end gap-x-4">
-                                                <Button type="button">Add to Cart</Button>
-                                                <Button type="button">Clear</Button>
+                                                <Button type="button" className='bg-slate-500'>Add to Cart</Button>
+                                                <Button type="button" className='bg-red-500'>Clear</Button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <Button type="submit">Submit</Button>
+                                <hr />
+                                <div className='flex justify-end gap-4'>
+                                    <Button type="submit" className='bg-slate-500'>Save as Draft</Button>
+                                    <Button type="submit">Submit</Button>
+                                </div>
                             </form>
                         </Form>
                     </div>
