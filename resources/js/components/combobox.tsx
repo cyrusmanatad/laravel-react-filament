@@ -30,13 +30,15 @@ export function Combobox({ options, onChange, placeholder = 'Select an option...
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="w-full justify-between">
-                    {value
-                        ? options
-                            .find((option) => option.value === value)
-                            ?.label.split(' ')
-                            .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                            .join(' ')
-                        : placeholder}
+                    <span className="truncate">
+                        {value
+                            ? options
+                                .find((option) => option.value === value)
+                                ?.label.split(' ')
+                                .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                .join(' ')
+                            : placeholder}
+                    </span>
                     <ChevronsUpDown className="opacity-50" />
                 </Button>
             </PopoverTrigger>

@@ -10,9 +10,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import AppLayout from '@/layouts/app-layout';
 import { cn } from '@/lib/utils';
-import { create } from '@/routes/orders';
-import { personnels as personnelsRoute, divisions as divisionsRoute, skus as skusRoute, customers as customersRoute, plants as plantsRoute} from '@/routes/api';
+import {
+    customers as customersRoute,
+    divisions as divisionsRoute,
+    personnels as personnelsRoute,
+    plants as plantsRoute,
+    skus as skusRoute,
+} from '@/routes/api';
 import { types as orderTypesRoute } from '@/routes/api/order';
+import { create } from '@/routes/orders';
 import { type BreadcrumbItem } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head } from '@inertiajs/react';
@@ -22,6 +28,9 @@ import { CalendarIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+
+type Option = { value: string; label: string };
+type SkuOption = Option & { uom: string, unit_price: string };
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -49,6 +58,8 @@ const formSchema = z.object({
     sku_code: z.string({
         error: 'Please select a SKU.',
     }),
+    uom: z.string().optional(),
+    unit_price: z.string().optional(),
     remarks: z.string().optional(),
     delivery_date: z.date({
         error: 'A delivery date is required.',
@@ -62,28 +73,34 @@ const formSchema = z.object({
 });
 
 export default function CreateOrder() {
-    console.log('CreateOrder Rendered');
-    
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
+        defaultValues: {
+            uom: '-',
+            unit_price: '-',
+        },
     });
+
+    const uom = form.watch('uom');
+    const unitPrice = form.watch('unit_price');
 
     function onSubmit(values: z.infer<typeof formSchema>) {
         console.log(values);
     }
 
-    const [orderTypes, setOrderTypes] = useState<{ value: string; label: string }[]>([]);
-    const [personnels, setPersonnels] = useState<{ value: string; label: string }[]>([]);
-    const [branchPlants, setBranchPlants] = useState<{ value: string; label: string }[]>([]);
-    const [divisions, setDivisions] = useState<{ value: string; label: string }[]>([]);
-    const [customers, setCustomers] = useState<{ value: string; label: string }[]>([]);
-    const [skus, setSkus] = useState<{ value: string; label: string }[]>([]);
-    const [isOrderTypeLoading, setIsOrderTypeLoading] = useState(true);
-    const [isPersonnelsLoading, setIsPersonnelsLoading] = useState(true);
-    const [isBranchPlantLoading, setIsBranchPlantLoading] = useState(true);
-    const [isCustomerLoading, setIsCustomerLoading] = useState(false);
-    const [isDivisionLoading, setIsDivisionLoading] = useState(false);
-    const [isSkuLoading, setIsSkuLoading] = useState(false);
+    const [orderTypes, setOrderTypes] = useState<Option[]>([]);
+    const [personnels, setPersonnels] = useState<Option[]>([]);
+    const [branchPlants, setBranchPlants] = useState<Option[]>([]);
+    const [divisions, setDivisions] = useState<Option[]>([]);
+    const [customers, setCustomers] = useState<Option[]>([]);
+    const [skus, setSkus] = useState<SkuOption[]>([]);
+    const [isOrderTypeLoading, setIsOrderTypeLoading] = useState<boolean>(true);
+    const [isPersonnelsLoading, setIsPersonnelsLoading] = useState<boolean>(true);
+    const [isBranchPlantLoading, setIsBranchPlantLoading] = useState<boolean>(true);
+    const [isCustomerLoading, setIsCustomerLoading] = useState<boolean>(false);
+    const [isDivisionLoading, setIsDivisionLoading] = useState<boolean>(false);
+    const [isSkuLoading, setIsSkuLoading] = useState<boolean>(false);
 
     useEffect(() => {
         axios
@@ -217,8 +234,7 @@ export default function CreateOrder() {
                                                         options={personnels}
                                                         // value={field.value}
                                                         onChange={(value) => {
-                                                            console.log(value);
-                                                            
+
                                                             field.onChange(value);
                                                             populateDivisionOptions(value);
                                                         }}
@@ -241,7 +257,7 @@ export default function CreateOrder() {
                                                         options={orderTypes}
                                                         // value={field.value}
                                                         onChange={field.onChange}
-                                                        placeholder={isOrderTypeLoading ? "Loading order types..." : "Select order type..."}
+                                                        placeholder={isOrderTypeLoading ? 'Loading order types...' : 'Select order type...'}
                                                         searchPlaceholder="Search order type..."
                                                         disabled={isOrderTypeLoading}
                                                     />
@@ -263,11 +279,7 @@ export default function CreateOrder() {
                                                             field.onChange(value);
                                                             populateCustomerOptions(value);
                                                         }}
-                                                        placeholder={
-                                                            isDivisionLoading
-                                                                ? "Loading divisions..." 
-                                                                : "Select division..."
-                                                        }
+                                                        placeholder={isDivisionLoading ? 'Loading divisions...' : 'Select division...'}
                                                         searchPlaceholder="Search division..."
                                                         disabled={isDivisionLoading}
                                                     />
@@ -289,11 +301,7 @@ export default function CreateOrder() {
                                                             field.onChange(value);
                                                             populateSkuOptions();
                                                         }}
-                                                        placeholder={
-                                                            isCustomerLoading
-                                                                ? 'Loading customers...'
-                                                                : 'Select customer...'
-                                                        }
+                                                        placeholder={isCustomerLoading ? 'Loading customers...' : 'Select customer...'}
                                                         searchPlaceholder="Search customer..."
                                                         disabled={isCustomerLoading}
                                                     />
@@ -315,7 +323,7 @@ export default function CreateOrder() {
                                                             field.onChange(value);
                                                             populateSkuOptions();
                                                         }}
-                                                        placeholder={isBranchPlantLoading ? "Loading branch plant..." : "Select branch plant..."}
+                                                        placeholder={isBranchPlantLoading ? 'Loading branch plant...' : 'Select branch plant...'}
                                                         searchPlaceholder="Search branch plant..."
                                                         disabled={isBranchPlantLoading}
                                                     />
@@ -370,27 +378,31 @@ export default function CreateOrder() {
                                                         <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="">
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="pickup" className='aria-invalid:border-grey' />
+                                                                    <RadioGroupItem value="pickup" className="aria-invalid:border-grey" />
                                                                 </FormControl>
                                                                 <FormLabel className="font-normal data-[error=true]:text-primary">Pick-up</FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="delivery" className='aria-invalid:border-grey' />
+                                                                    <RadioGroupItem value="delivery" className="aria-invalid:border-grey" />
                                                                 </FormControl>
                                                                 <FormLabel className="font-normal data-[error=true]:text-primary">Delivery</FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="sea_shippment" className='aria-invalid:border-grey' />
+                                                                    <RadioGroupItem value="sea_shippment" className="aria-invalid:border-grey" />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Shipment by Sea</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">
+                                                                    Shipment by Sea
+                                                                </FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="air_shipment" className='aria-invalid:border-grey' />
+                                                                    <RadioGroupItem value="air_shipment" className="aria-invalid:border-grey" />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Shipment by Air</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">
+                                                                    Shipment by Air
+                                                                </FormLabel>
                                                             </FormItem>
                                                         </RadioGroup>
                                                     </FormControl>
@@ -423,12 +435,22 @@ export default function CreateOrder() {
                                                 control={form.control}
                                                 name="sku_code"
                                                 render={({ field }) => (
-                                                    <FormItem className="flex flex-col sm:col-span-2">
+                                                    <FormItem className="flex flex-col">
                                                         <FormLabel>SKU</FormLabel>
                                                         <Combobox
                                                             options={skus}
                                                             // value={field.value}
-                                                            onChange={field.onChange}
+                                                            onChange={(value) => {
+                                                                field.onChange(value);
+                                                                const selectedSku = skus.find((sku) => sku.value === value);
+                                                                if (selectedSku) {
+                                                                    form.setValue('uom', selectedSku.uom);
+                                                                    form.setValue('unit_price', selectedSku.unit_price);
+                                                                } else {
+                                                                    form.setValue('uom', '-');
+                                                                    form.setValue('unit_price', '-');
+                                                                }
+                                                            }}
                                                             placeholder={isSkuLoading ? 'Loading SKUs...' : 'Select SKU...'}
                                                             searchPlaceholder="Search SKU..."
                                                             disabled={isSkuLoading}
@@ -441,13 +463,13 @@ export default function CreateOrder() {
                                         <div className="sm:col-span-1">
                                             <FormLabel>UOM</FormLabel>
                                             <div className="mt-auto">
-                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">-</p>
+                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">{uom}</p>
                                             </div>
                                         </div>
                                         <div className="sm:col-span-1">
                                             <FormLabel>Unit Price</FormLabel>
                                             <div className="mt-auto">
-                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">-</p>
+                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">{unitPrice}</p>
                                             </div>
                                         </div>
                                         <div className="sm:col-span-1">
@@ -468,17 +490,23 @@ export default function CreateOrder() {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="pt-4 sm:col-span-6 flex justify-end">
+                                        <div className="flex justify-end pt-4 sm:col-span-6">
                                             <div className="flex items-end gap-x-4">
-                                                <Button type="button" className='bg-slate-500'>Add to Cart</Button>
-                                                <Button type="button" className='bg-red-500'>Clear</Button>
+                                                <Button type="button" className="bg-slate-500">
+                                                    Add to Cart
+                                                </Button>
+                                                <Button type="button" className="bg-red-500">
+                                                    Clear
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 <hr />
-                                <div className='flex justify-end gap-4'>
-                                    <Button type="submit" className='bg-slate-500'>Save as Draft</Button>
+                                <div className="flex justify-end gap-4">
+                                    <Button type="submit" className="bg-slate-500">
+                                        Save as Draft
+                                    </Button>
                                     <Button type="submit">Submit</Button>
                                 </div>
                             </form>
