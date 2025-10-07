@@ -23,7 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { CalendarIcon, X } from 'lucide-react';
+import { CalendarIcon, Check, Pencil, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -100,6 +100,8 @@ export default function CreateOrder() {
     const [isCustomerLoading, setIsCustomerLoading] = useState<boolean>(false);
     const [isDivisionLoading, setIsDivisionLoading] = useState<boolean>(false);
     const [isSkuLoading, setIsSkuLoading] = useState<boolean>(false);
+    const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+    const [editingQuantity, setEditingQuantity] = useState<string>('');
 
     const handleAddToCart = () => {
         const { sku_code, quantity } = form.getValues();
@@ -167,6 +169,31 @@ export default function CreateOrder() {
 
     const handleRemoveItem = (index: number) => {
         setCartItems(cartItems.filter((_, i) => i !== index));
+    };
+
+    const handleEditItem = (index: number) => {
+        setEditingItemIndex(index);
+        setEditingQuantity(cartItems[index].quantity);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingItemIndex(null);
+        setEditingQuantity('');
+    };
+
+    const handleUpdateQuantity = (index: number) => {
+        const newQuantity = parseInt(editingQuantity);
+        if (isNaN(newQuantity) || newQuantity < 1) {
+            alert('Please enter a valid quantity.');
+            return;
+        }
+
+        const updatedCartItems = [...cartItems];
+        updatedCartItems[index].quantity = editingQuantity;
+        setCartItems(updatedCartItems);
+
+        setEditingItemIndex(null);
+        setEditingQuantity('');
     };
 
     function handleSaveDraft(values: z.infer<typeof formSchema>) {
@@ -677,22 +704,69 @@ export default function CreateOrder() {
                                 <p className="text-muted-foreground">No items in cart</p>
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-y-4 divide-y divide-gray-200/10">
+                            <div className="flex flex-col gap-y-4">
                                 {cartItems.map((item, index) => (
-                                    <div key={index} className="flex items-center justify-between pt-4">
-                                        <div>
-                                            <p className="text-sm font-semibold">{item.sku_label}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Qty: {item.quantity} @ {item.unit_price} ({item.uom})
-                                            </p>
+                                    <div key={index} className="rounded-lg border border-gray-200/10">
+                                        <div className="flex items-center justify-between">
+                                            <p className="font-semibold">{item.sku_label}</p>
+                                            <div>
+                                                {editingItemIndex === index ? (
+                                                    <div className="flex items-center justify-end gap-x-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleUpdateQuantity(index)}
+                                                        >
+                                                            <Check className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={handleCancelEdit}
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center justify-end gap-x-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleEditItem(index)}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleRemoveItem(index)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => handleRemoveItem(index)}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
+                                        <div className="mt-2 flex items-end justify-between text-sm">
+                                            <div>
+                                                <span className="text-muted-foreground">Qty: </span>
+                                                {editingItemIndex === index ? (
+                                                    <Input
+                                                        type="number"
+                                                        value={editingQuantity}
+                                                        onChange={(e) => setEditingQuantity(e.target.value)}
+                                                        className="h-8 w-20"
+                                                        min={1}
+                                                    />
+                                                ) : (
+                                                    <span className="font-medium">{item.quantity}</span>
+                                                )}
+                                            </div>
+                                            <div className="text-right">
+                                                <p>@ {item.unit_price}</p>
+                                                <p className="text-muted-foreground">({item.uom})</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
