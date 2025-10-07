@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import AppLayout from '@/layouts/app-layout';
@@ -24,13 +23,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 
 type Option = { value: string; label: string };
-type SkuOption = Option & { uom: string, unit_price: string };
+type SkuOption = Option & { uom: string; unit_price: string };
+type CartItem = {
+    sku_code: string;
+    sku_label: string;
+    uom: string;
+    unit_price: string;
+    quantity: string;
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -55,9 +61,7 @@ const formSchema = z.object({
     branch_code: z.string({
         error: 'Please select a branch plant.',
     }),
-    sku_code: z.string({
-        error: 'Please select a SKU.',
-    }),
+    sku_code: z.string().optional(),
     uom: z.string().optional(),
     unit_price: z.string().optional(),
     remarks: z.string().optional(),
@@ -67,13 +71,10 @@ const formSchema = z.object({
     delivery_mode: z.string({
         error: 'You need to select a delivery mode.',
     }),
-    quantity: z.string({
-        error: 'Please input a quantity.',
-    }),
+    quantity: z.string().optional(),
 });
 
 export default function CreateOrder() {
-
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -85,10 +86,8 @@ export default function CreateOrder() {
     const uom = form.watch('uom');
     const unitPrice = form.watch('unit_price');
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values);
-    }
-
+    const [orderSlipNumber, setOrderSlipNumber] = useState<string>('');
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [orderTypes, setOrderTypes] = useState<Option[]>([]);
     const [personnels, setPersonnels] = useState<Option[]>([]);
     const [branchPlants, setBranchPlants] = useState<Option[]>([]);
@@ -102,7 +101,100 @@ export default function CreateOrder() {
     const [isDivisionLoading, setIsDivisionLoading] = useState<boolean>(false);
     const [isSkuLoading, setIsSkuLoading] = useState<boolean>(false);
 
+    const handleAddToCart = () => {
+        const { sku_code, quantity } = form.getValues();
+
+        if (!sku_code) {
+            form.setError('sku_code', { type: 'manual', message: 'Please select a SKU.' });
+            return;
+        }
+
+        const quantityToAdd = parseInt(quantity || '0');
+        if (quantityToAdd < 1) {
+            form.setError('quantity', { type: 'manual', message: 'Please input a valid quantity.' });
+            return;
+        }
+
+        const existingItemIndex = cartItems.findIndex((item) => item.sku_code === sku_code);
+
+        if (existingItemIndex > -1) {
+            const updatedCartItems = [...cartItems];
+            const existingItem = updatedCartItems[existingItemIndex];
+            const newQuantity = parseInt(existingItem.quantity) + quantityToAdd;
+            updatedCartItems[existingItemIndex] = { ...existingItem, quantity: newQuantity.toString() };
+            setCartItems(updatedCartItems);
+        } else {
+            const selectedSku = skus.find((sku) => sku.value === sku_code);
+            if (selectedSku) {
+                const newItem: CartItem = {
+                    sku_code,
+                    sku_label: selectedSku.label,
+                    uom: form.getValues('uom') || '-',
+                    unit_price: form.getValues('unit_price') || '-',
+                    quantity: quantityToAdd.toString(),
+                };
+                setCartItems([...cartItems, newItem]);
+            }
+        }
+
+        form.resetField('sku_code');
+        form.resetField('uom');
+        form.resetField('unit_price');
+        form.resetField('quantity');
+        form.setValue('uom', '-');
+        form.setValue('unit_price', '-');
+    };
+
+    const handleClearItemSelection = () => {
+        form.resetField('psr_code');
+        form.resetField('order_type');
+        form.resetField('div_code');
+        setDivisions([]);
+        form.resetField('cust_code');
+        setCustomers([]);
+        form.resetField('branch_code');
+        setBranchPlants([]);
+        form.resetField('delivery_date');
+        form.resetField('delivery_mode');
+        form.resetField('sku_code');
+        setSkus([]);
+        form.resetField('uom');
+        form.resetField('unit_price');
+        form.resetField('quantity');
+        form.setValue('uom', '-');
+        form.setValue('unit_price', '-');
+    };
+
+    const handleRemoveItem = (index: number) => {
+        setCartItems(cartItems.filter((_, i) => i !== index));
+    };
+
+    function handleSaveDraft(values: z.infer<typeof formSchema>) {
+        if (cartItems.length === 0) {
+            alert('Please add at least one item to the order.');
+            return;
+        }
+        console.log('Saving draft:', { ...values, items: cartItems });
+        // Here you would typically make an API call to save the draft
+    }
+
+    function handleSubmitOrder(values: z.infer<typeof formSchema>) {
+        if (cartItems.length === 0) {
+            alert('Please add at least one item to the order.');
+            return;
+        }
+        console.log('Submitting order:', { ...values, items: cartItems });
+        // Here you would typically make an API call to submit the order
+    }
+
+    function generateOrderSlipNumber() {
+        const _date = new Date();
+        return "W1100-" + _date.getFullYear().toString().substring(2)  +"-"+ _date.getMonth() + _date.getHours() + _date.getMinutes() + _date.getSeconds()
+    }
+
     useEffect(() => {
+        setOrderSlipNumber(generateOrderSlipNumber)
+
         axios
             .get(orderTypesRoute().url)
             .then((response) => setOrderTypes(response.data))
@@ -209,18 +301,20 @@ export default function CreateOrder() {
                     <div className="relative col-span-2 overflow-hidden rounded-xl border border-sidebar-border/70 p-8.5 dark:border-sidebar-border">
                         <div className="mb-10 flex items-baseline justify-between">
                             <div>
-                                <h2 className="text-base leading-7 font-semibold">Order Details</h2>
-                                <p className="mt-1 text-sm leading-6 text-gray-400">Provide the main details for the order.</p>
+                                <h2 className="text-base font-semibold leading-7">Order Details</h2>
+                                <p className="mt-1 text-sm leading-6 text-gray-400">
+                                    Provide the main details for the order.
+                                </p>
                             </div>
                             <div>
                                 <span className="text-sm font-medium">Order Slip #:</span>
                                 <span className="ml-2 font-mono text-lg" x-text="orderSlipNumber">
-                                    ORD-20254-01215
+                                    {orderSlipNumber}
                                 </span>
                             </div>
                         </div>
                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                            <form className="space-y-8">
                                 <div className="border-gray/10 border-b pb-12">
                                     <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                                         {/* Personnel */}
@@ -232,13 +326,16 @@ export default function CreateOrder() {
                                                     <FormLabel>Personnel</FormLabel>
                                                     <Combobox
                                                         options={personnels}
-                                                        // value={field.value}
+                                                        value={field.value}
                                                         onChange={(value) => {
-
                                                             field.onChange(value);
                                                             populateDivisionOptions(value);
                                                         }}
-                                                        placeholder={isOrderTypeLoading ? 'Loading personnels...' : 'Select personnel...'}
+                                                        placeholder={
+                                                            isOrderTypeLoading
+                                                                ? 'Loading personnels...'
+                                                                : 'Select personnel...'
+                                                        }
                                                         searchPlaceholder="Search personnel..."
                                                         disabled={isPersonnelsLoading}
                                                     />
@@ -255,9 +352,13 @@ export default function CreateOrder() {
                                                     <FormLabel>Order Type</FormLabel>
                                                     <Combobox
                                                         options={orderTypes}
-                                                        // value={field.value}
+                                                        value={field.value}
                                                         onChange={field.onChange}
-                                                        placeholder={isOrderTypeLoading ? 'Loading order types...' : 'Select order type...'}
+                                                        placeholder={
+                                                            isOrderTypeLoading
+                                                                ? 'Loading order types...'
+                                                                : 'Select order type...'
+                                                        }
                                                         searchPlaceholder="Search order type..."
                                                         disabled={isOrderTypeLoading}
                                                     />
@@ -274,12 +375,14 @@ export default function CreateOrder() {
                                                     <FormLabel>Division</FormLabel>
                                                     <Combobox
                                                         options={divisions}
-                                                        // value={field.value}
+                                                        value={field.value}
                                                         onChange={(value) => {
                                                             field.onChange(value);
                                                             populateCustomerOptions(value);
                                                         }}
-                                                        placeholder={isDivisionLoading ? 'Loading divisions...' : 'Select division...'}
+                                                        placeholder={
+                                                            isDivisionLoading ? 'Loading divisions...' : 'Select division...'
+                                                        }
                                                         searchPlaceholder="Search division..."
                                                         disabled={isDivisionLoading}
                                                     />
@@ -296,12 +399,14 @@ export default function CreateOrder() {
                                                     <FormLabel>Customer</FormLabel>
                                                     <Combobox
                                                         options={customers}
-                                                        // value={field.value}
+                                                        value={field.value}
                                                         onChange={(value) => {
                                                             field.onChange(value);
                                                             populateSkuOptions();
                                                         }}
-                                                        placeholder={isCustomerLoading ? 'Loading customers...' : 'Select customer...'}
+                                                        placeholder={
+                                                            isCustomerLoading ? 'Loading customers...' : 'Select customer...'
+                                                        }
                                                         searchPlaceholder="Search customer..."
                                                         disabled={isCustomerLoading}
                                                     />
@@ -318,12 +423,16 @@ export default function CreateOrder() {
                                                     <FormLabel>Branch Plant</FormLabel>
                                                     <Combobox
                                                         options={branchPlants}
-                                                        // value={field.value}
+                                                        value={field.value}
                                                         onChange={(value) => {
                                                             field.onChange(value);
                                                             populateSkuOptions();
                                                         }}
-                                                        placeholder={isBranchPlantLoading ? 'Loading branch plant...' : 'Select branch plant...'}
+                                                        placeholder={
+                                                            isBranchPlantLoading
+                                                                ? 'Loading branch plant...'
+                                                                : 'Select branch plant...'
+                                                        }
                                                         searchPlaceholder="Search branch plant..."
                                                         disabled={isBranchPlantLoading}
                                                     />
@@ -348,7 +457,11 @@ export default function CreateOrder() {
                                                                         !field.value && 'text-muted-foreground',
                                                                     )}
                                                                 >
-                                                                    {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                                                    {field.value ? (
+                                                                        format(field.value, 'PPP')
+                                                                    ) : (
+                                                                        <span>Pick a date</span>
+                                                                    )}
                                                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </FormControl>
@@ -358,7 +471,9 @@ export default function CreateOrder() {
                                                                 mode="single"
                                                                 selected={field.value}
                                                                 onSelect={field.onChange}
-                                                                disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+                                                                disabled={(date) =>
+                                                                    date > new Date() || date < new Date('1900-01-01')
+                                                                }
                                                                 // initialFocus
                                                             />
                                                         </PopoverContent>
@@ -375,22 +490,39 @@ export default function CreateOrder() {
                                                 <FormItem className="col-span-full">
                                                     <FormLabel>Delivery Mode</FormLabel>
                                                     <FormControl className="flex space-y-1 gap-x-8 gap-y-4">
-                                                        <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="">
+                                                        <RadioGroup
+                                                            onValueChange={field.onChange}
+                                                            defaultValue={field.value}
+                                                            className=""
+                                                        >
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="pickup" className="aria-invalid:border-grey" />
+                                                                    <RadioGroupItem
+                                                                        value="pickup"
+                                                                        className="aria-invalid:border-grey"
+                                                                    />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Pick-up</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">
+                                                                    Pick-up
+                                                                </FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="delivery" className="aria-invalid:border-grey" />
+                                                                    <RadioGroupItem
+                                                                        value="delivery"
+                                                                        className="aria-invalid:border-grey"
+                                                                    />
                                                                 </FormControl>
-                                                                <FormLabel className="font-normal data-[error=true]:text-primary">Delivery</FormLabel>
+                                                                <FormLabel className="font-normal data-[error=true]:text-primary">
+                                                                    Delivery
+                                                                </FormLabel>
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="sea_shippment" className="aria-invalid:border-grey" />
+                                                                    <RadioGroupItem
+                                                                        value="sea_shippment"
+                                                                        className="aria-invalid:border-grey"
+                                                                    />
                                                                 </FormControl>
                                                                 <FormLabel className="font-normal data-[error=true]:text-primary">
                                                                     Shipment by Sea
@@ -398,7 +530,10 @@ export default function CreateOrder() {
                                                             </FormItem>
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
-                                                                    <RadioGroupItem value="air_shipment" className="aria-invalid:border-grey" />
+                                                                    <RadioGroupItem
+                                                                        value="air_shipment"
+                                                                        className="aria-invalid:border-grey"
+                                                                    />
                                                                 </FormControl>
                                                                 <FormLabel className="font-normal data-[error=true]:text-primary">
                                                                     Shipment by Air
@@ -427,7 +562,7 @@ export default function CreateOrder() {
                                     </div>
                                 </div>
                                 <div className="border-b border-white/10 pb-12">
-                                    <h2 className="text-base leading-7 font-semibold">Add Items to Order</h2>
+                                    <h2 className="text-base font-semibold leading-7">Add Items to Order</h2>
                                     <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                                         <div className="sm:col-span-3">
                                             {/* SKU */}
@@ -439,13 +574,18 @@ export default function CreateOrder() {
                                                         <FormLabel>SKU</FormLabel>
                                                         <Combobox
                                                             options={skus}
-                                                            // value={field.value}
+                                                            value={field.value}
                                                             onChange={(value) => {
                                                                 field.onChange(value);
-                                                                const selectedSku = skus.find((sku) => sku.value === value);
+                                                                const selectedSku = skus.find(
+                                                                    (sku) => sku.value === value,
+                                                                );
                                                                 if (selectedSku) {
                                                                     form.setValue('uom', selectedSku.uom);
-                                                                    form.setValue('unit_price', selectedSku.unit_price);
+                                                                    form.setValue(
+                                                                        'unit_price',
+                                                                        selectedSku.unit_price,
+                                                                    );
                                                                 } else {
                                                                     form.setValue('uom', '-');
                                                                     form.setValue('unit_price', '-');
@@ -463,13 +603,17 @@ export default function CreateOrder() {
                                         <div className="sm:col-span-1">
                                             <FormLabel>UOM</FormLabel>
                                             <div className="mt-auto">
-                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">{uom}</p>
+                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">
+                                                    {uom}
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="sm:col-span-1">
                                             <FormLabel>Unit Price</FormLabel>
                                             <div className="mt-auto">
-                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">{unitPrice}</p>
+                                                <p className="text-white-disabled mt-3.5 h-[2.125rem] leading-[1.5]">
+                                                    {unitPrice}
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="sm:col-span-1">
@@ -492,10 +636,18 @@ export default function CreateOrder() {
                                         </div>
                                         <div className="flex justify-end pt-4 sm:col-span-6">
                                             <div className="flex items-end gap-x-4">
-                                                <Button type="button" className="bg-slate-500">
+                                                <Button
+                                                    type="button"
+                                                    className="bg-slate-500"
+                                                    onClick={handleAddToCart}
+                                                >
                                                     Add to Cart
                                                 </Button>
-                                                <Button type="button" className="bg-red-500">
+                                                <Button
+                                                    type="button"
+                                                    className="bg-red-500"
+                                                    onClick={handleClearItemSelection}
+                                                >
                                                     Clear
                                                 </Button>
                                             </div>
@@ -504,16 +656,47 @@ export default function CreateOrder() {
                                 </div>
                                 <hr />
                                 <div className="flex justify-end gap-4">
-                                    <Button type="submit" className="bg-slate-500">
+                                    <Button
+                                        type="button"
+                                        onClick={form.handleSubmit(handleSaveDraft)}
+                                        className="bg-slate-500"
+                                    >
                                         Save as Draft
                                     </Button>
-                                    <Button type="submit">Submit</Button>
+                                    <Button type="button" onClick={form.handleSubmit(handleSubmitOrder)}>
+                                        Submit
+                                    </Button>
                                 </div>
                             </form>
                         </Form>
                     </div>
-                    <div className="relative col-span-1 overflow-hidden rounded-xl border border-sidebar-border/70 p-8.5 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    <div className="relative col-span-1 flex flex-col gap-y-4 overflow-hidden rounded-xl border border-sidebar-border/70 p-8.5 dark:border-sidebar-border">
+                        <h2 className="text-base font-semibold leading-7">Order Summary</h2>
+                        {cartItems.length === 0 ? (
+                            <div className="relative flex h-full w-full items-center justify-center rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
+                                <p className="text-muted-foreground">No items in cart</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-y-4 divide-y divide-gray-200/10">
+                                {cartItems.map((item, index) => (
+                                    <div key={index} className="flex items-center justify-between pt-4">
+                                        <div>
+                                            <p className="text-sm font-semibold">{item.sku_label}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Qty: {item.quantity} @ {item.unit_price} ({item.uom})
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleRemoveItem(index)}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

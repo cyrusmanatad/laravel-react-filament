@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Check, ChevronsUpDown } from 'lucide-react';
 import * as React from 'react';
@@ -10,34 +10,29 @@ import { cn } from '@/lib/utils';
 
 interface ComboboxProps {
     options: { label: string; value: string }[];
-    // value?: string;
+    value?: string;
     onChange: (value: string) => void;
     placeholder?: string;
     searchPlaceholder?: string;
     disabled?: boolean;
 }
 
-export function Combobox({ options, onChange, placeholder = 'Select an option...', searchPlaceholder = 'Search...', disabled = false }: ComboboxProps) {
+export function Combobox({
+    options,
+    value,
+    onChange,
+    placeholder = 'Select an option...',
+    searchPlaceholder = 'Search...',
+    disabled = false,
+}: ComboboxProps) {
     const [open, setOpen] = React.useState(false);
-    const [value, setValue] = React.useState('');
-
-    function ucword(str: string) {
-        const words = str.split(' ');
-        return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-    }
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="w-full justify-between">
                     <span className="truncate">
-                        {value
-                            ? options
-                                .find((option) => option.value === value)
-                                ?.label.split(' ')
-                                .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                                .join(' ')
-                            : placeholder}
+                        {value ? options.find((option) => option.value === value)?.label : placeholder}
                     </span>
                     <ChevronsUpDown className="opacity-50" />
                 </Button>
@@ -53,16 +48,17 @@ export function Combobox({ options, onChange, placeholder = 'Select an option...
                                     key={option.value}
                                     value={option.label}
                                     onSelect={(currentLabel) => {
-                                        const selectedOption = options.find((opt) => opt.label.toLowerCase() === currentLabel.toLowerCase());
+                                        const selectedOption = options.find(
+                                            (opt) => opt.label.toLowerCase() === currentLabel.toLowerCase(),
+                                        );
 
                                         if (selectedOption) {
-                                            onChange(selectedOption.value);
-                                            setValue(selectedOption.value === value ? '' : selectedOption.value);
+                                            onChange(selectedOption.value === value ? '' : selectedOption.value);
                                         }
                                         setOpen(false);
                                     }}
                                 >
-                                    {ucword(option.label)}
+                                    {option.label}
                                     <Check className={cn('ml-auto', value === option.value ? 'opacity-100' : 'opacity-0')} />
                                 </CommandItem>
                             ))}
