@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, LucideLoader } from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -31,10 +31,8 @@ export function Combobox({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="w-full justify-between">
-                    <span className="truncate">
-                        {value ? options.find((option) => option.value === value)?.label : placeholder}
-                    </span>
-                    <ChevronsUpDown className="opacity-50" />
+                    <span className="truncate">{value ? options.find((option) => option.value === value)?.label : placeholder}</span>
+                    {disabled ? <LucideLoader className="animate-spin" /> : <ChevronsUpDown className="opacity-50" />}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-full p-0" align="start">
@@ -48,9 +46,7 @@ export function Combobox({
                                     key={option.value}
                                     value={option.label}
                                     onSelect={(currentLabel) => {
-                                        const selectedOption = options.find(
-                                            (opt) => opt.label.toLowerCase() === currentLabel.toLowerCase(),
-                                        );
+                                        const selectedOption = options.find((opt) => opt.label.toLowerCase() === currentLabel.toLowerCase());
 
                                         if (selectedOption) {
                                             onChange(selectedOption.value === value ? '' : selectedOption.value);
