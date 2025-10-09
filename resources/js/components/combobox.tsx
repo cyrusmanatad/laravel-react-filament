@@ -32,7 +32,15 @@ export function Combobox({
             <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" aria-expanded={open} disabled={disabled} className="w-full justify-between">
                     <span className="truncate">{value ? options.find((option) => option.value === value)?.label : placeholder}</span>
-                    {disabled ? <LucideLoader className="animate-spin" /> : <ChevronsUpDown className="opacity-50" />}
+                    {disabled ? (
+                        value === undefined ? (
+                            <LucideLoader className="animate-spin" />
+                        ) : (
+                            <ChevronsUpDown className="opacity-50" />
+                        )
+                    ) : (
+                        <ChevronsUpDown className="opacity-50" />
+                    )}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-full p-0" align="start">

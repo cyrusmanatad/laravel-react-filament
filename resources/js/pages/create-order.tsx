@@ -17,7 +17,7 @@ import {
     skus as skusRoute,
 } from '@/routes/api';
 import { types as orderTypesRoute } from '@/routes/api/order';
-import { create } from '@/routes/orders';
+import { create, store } from '@/routes/orders';
 import { type BreadcrumbItem } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head } from '@inertiajs/react';
@@ -46,6 +46,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const formSchema = z.object({
+    psr_uid: z.string(),
+    order_slip_number: z.string(),
     order_type: z.string({
         error: 'Please select an order type.',
     }),
@@ -142,7 +144,7 @@ export default function CreateOrder() {
         form.resetField('sku_code');
         form.resetField('uom');
         form.resetField('unit_price');
-        form.resetField('quantity');
+        form.setValue('quantity', '');
         form.setValue('uom', '-');
         form.setValue('unit_price', '-');
     };
@@ -162,9 +164,11 @@ export default function CreateOrder() {
         setSkus([]);
         form.resetField('uom');
         form.resetField('unit_price');
-        form.resetField('quantity');
+        form.setValue('remarks', '');
+        form.setValue('quantity', '');
         form.setValue('uom', '-');
         form.setValue('unit_price', '-');
+        setCartItems([]);
     };
 
     const handleRemoveItem = (index: number) => {
@@ -210,8 +214,14 @@ export default function CreateOrder() {
             alert('Please add at least one item to the order.');
             return;
         }
-        console.log('Submitting order:', { ...values, items: cartItems });
-        // Here you would typically make an API call to submit the order
+        axios
+            .post(store().url, { ...values, items: cartItems })
+            .then((response) => {
+                console.log(response);
+                handleClearItemSelection();
+                setOrderSlipNumber(generateOrderSlipNumber)
+            })
+            .catch((error) => console.error('Error fetching options:', error))
     }
 
     function generateOrderSlipNumber() {
@@ -240,6 +250,9 @@ export default function CreateOrder() {
             .catch((error) => console.error('Error fetching options:', error))
             .finally(() => setIsBranchPlantLoading(false));
     }, []);
+
+    form.setValue('order_slip_number', orderSlipNumber);
+    form.setValue('psr_uid', '9999');
 
     const populateDivisionOptions = (psrCode: string) => {
         form.setValue('div_code', ''); // Reset division
@@ -364,7 +377,7 @@ export default function CreateOrder() {
                                                                 : 'Select personnel...'
                                                         }
                                                         searchPlaceholder="Search personnel..."
-                                                        disabled={isPersonnelsLoading}
+                                                        disabled={isPersonnelsLoading || cartItems.length !== 0}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -387,7 +400,7 @@ export default function CreateOrder() {
                                                                 : 'Select order type...'
                                                         }
                                                         searchPlaceholder="Search order type..."
-                                                        disabled={isOrderTypeLoading}
+                                                        disabled={isOrderTypeLoading || cartItems.length !== 0}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -411,7 +424,7 @@ export default function CreateOrder() {
                                                             isDivisionLoading ? 'Loading divisions...' : 'Select division...'
                                                         }
                                                         searchPlaceholder="Search division..."
-                                                        disabled={isDivisionLoading}
+                                                        disabled={isDivisionLoading || cartItems.length !== 0}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -435,7 +448,7 @@ export default function CreateOrder() {
                                                             isCustomerLoading ? 'Loading customers...' : 'Select customer...'
                                                         }
                                                         searchPlaceholder="Search customer..."
-                                                        disabled={isCustomerLoading}
+                                                        disabled={isCustomerLoading || cartItems.length !== 0}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -461,7 +474,7 @@ export default function CreateOrder() {
                                                                 : 'Select branch plant...'
                                                         }
                                                         searchPlaceholder="Search branch plant..."
-                                                        disabled={isBranchPlantLoading}
+                                                        disabled={isBranchPlantLoading || cartItems.length !== 0}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -478,6 +491,7 @@ export default function CreateOrder() {
                                                         <PopoverTrigger asChild>
                                                             <FormControl>
                                                                 <Button
+                                                                    disabled={cartItems.length !== 0}
                                                                     variant={'outline'}
                                                                     className={cn(
                                                                         'w-full pl-3 text-left font-normal aria-invalid:border-ring',
@@ -499,7 +513,7 @@ export default function CreateOrder() {
                                                                 selected={field.value}
                                                                 onSelect={field.onChange}
                                                                 disabled={(date) =>
-                                                                    date > new Date() || date < new Date('1900-01-01')
+                                                                    date > new Date() || date < new Date('1900-01-01') || cartItems.length !== 0
                                                                 }
                                                                 // initialFocus
                                                             />
@@ -521,6 +535,7 @@ export default function CreateOrder() {
                                                             onValueChange={field.onChange}
                                                             defaultValue={field.value}
                                                             className=""
+                                                            disabled={cartItems.length !== 0}
                                                         >
                                                             <FormItem className="flex items-center space-y-0 space-x-3">
                                                                 <FormControl>
@@ -580,7 +595,7 @@ export default function CreateOrder() {
                                                 <FormItem className="col-span-full flex flex-col">
                                                     <FormLabel>Remarks</FormLabel>
                                                     <FormControl>
-                                                        <Input placeholder="Enter remarks..." {...field} />
+                                                        <Input disabled={cartItems.length !== 0} placeholder="Enter remarks..." {...field} />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -645,7 +660,6 @@ export default function CreateOrder() {
                                         </div>
                                         <div className="sm:col-span-1">
                                             <div className="mt-auto">
-                                                {/* Remarks */}
                                                 <FormField
                                                     control={form.control}
                                                     name="quantity"
@@ -663,16 +677,14 @@ export default function CreateOrder() {
                                         </div>
                                         <div className="flex justify-end pt-4 sm:col-span-6">
                                             <div className="flex items-end gap-x-4">
-                                                <Button
-                                                    type="button"
-                                                    className="bg-slate-500"
-                                                    onClick={handleAddToCart}
+                                                <Button type="button" onClick={form.handleSubmit(handleAddToCart)}
+                                                    className="cursor-pointer"
                                                 >
                                                     Add to Cart
                                                 </Button>
                                                 <Button
                                                     type="button"
-                                                    className="bg-red-500"
+                                                    className="bg-red-500 cursor-pointer"
                                                     onClick={handleClearItemSelection}
                                                 >
                                                     Clear
@@ -683,14 +695,12 @@ export default function CreateOrder() {
                                 </div>
                                 <hr />
                                 <div className="flex justify-end gap-4">
-                                    <Button
-                                        type="button"
-                                        onClick={form.handleSubmit(handleSaveDraft)}
-                                        className="bg-slate-500"
+                                    <Button type="button" onClick={form.handleSubmit(handleSaveDraft)}
+                                        className="bg-slate-500 cursor-pointer"
                                     >
                                         Save as Draft
                                     </Button>
-                                    <Button type="button" onClick={form.handleSubmit(handleSubmitOrder)}>
+                                    <Button type="button" onClick={form.handleSubmit(handleSubmitOrder)} className="cursor-pointer">
                                         Submit
                                     </Button>
                                 </div>
@@ -708,7 +718,7 @@ export default function CreateOrder() {
                                 {cartItems.map((item, index) => (
                                     <div key={index} className="rounded-lg border border-gray-200/10">
                                         <div className="flex items-center justify-between">
-                                            <p className="font-semibold">{item.sku_label}</p>
+                                            <small className="font-semibold">{item.sku_label}</small>
                                             <div>
                                                 {editingItemIndex === index ? (
                                                     <div className="flex items-center justify-end gap-x-1">
@@ -747,7 +757,7 @@ export default function CreateOrder() {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="mt-2 flex items-end justify-between text-sm">
+                                        <div className="flex justify-between text-sm">
                                             <div>
                                                 <span className="text-muted-foreground">Qty: </span>
                                                 {editingItemIndex === index ? (
@@ -759,14 +769,19 @@ export default function CreateOrder() {
                                                         min={1}
                                                     />
                                                 ) : (
-                                                    <span className="font-medium">{item.quantity}</span>
+                                                    <>
+                                                        <span className="font-medium font-mono mx-2">{item.quantity}</span>
+                                                        |
+                                                        <span className="font-medium font-mono mx-2 text-muted-foreground">{item.uom}</span>
+                                                    </>
                                                 )}
                                             </div>
                                             <div className="text-right">
-                                                <p>@ {item.unit_price}</p>
-                                                <p className="text-muted-foreground">({item.uom})</p>
+                                                <p className='font-mono'>@ {parseFloat(item.unit_price).toFixed(2)}</p>
+                                                {/* <p className="text-muted-foreground">({item.uom})</p> */}
                                             </div>
                                         </div>
+                                        <hr className='mt-2' />
                                     </div>
                                 ))}
                             </div>

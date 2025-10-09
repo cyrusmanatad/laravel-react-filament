@@ -19,56 +19,34 @@ class OrderService
             // Create the main order
             $order = Order::create([
                 'psr_uid' => $validatedData['psr_uid'],
-                'order_type' => $validatedData['order_types'],
+                'order_type' => $validatedData['order_type'],
                 'psr_code' => $validatedData['psr_code'],
-                'order_slip_number' =>$validatedData[ 'order_slip_number'],
-                'cust_code' => $validatedData['customer'],
-                'div_code' => $validatedData['division'],
-                'branch_code' => $validatedData['branch_plant'],
+                'order_slip_number' => $validatedData[ 'order_slip_number'],
+                'cust_code' => $validatedData['cust_code'],
+                'div_code' => $validatedData['div_code'],
+                'branch_code' => $validatedData['branch_code'],
                 'delivery_mode' => $validatedData['delivery_mode'],
                 'remarks' => $validatedData['remarks'],
-                'delivery_date' => $validatedData['delivery_date']
+                'delivery_date' => $validatedData['delivery_date'],
+                'status' => 'approved',
+                'attempt' => 0,
             ]);
 
-            $items = $this->prepareItems($validatedData);
+            $items = array_map(fn($item) => [
+                'sku_code' => $item['sku_code'],
+                'price' => $item['unit_price'],
+                'uom' => $item['uom'],
+                'sku_type' => null,
+                'ref_item' => null,
+                'qty' => $item['quantity'],
+            ], $validatedData['items']);
 
             // Process each item
             foreach ($items as $itemData) {
-                $this->createOrderItem($order, $itemData);
+                OrderItem::create(['order_slip_number' => $validatedData[ 'order_slip_number'], ...$itemData]);
             }
 
             return $order->fresh(); // Return fresh instance with updated data
         });
-    }
-
-    /**
-     * Prepare items array from form data
-     */
-    private function prepareItems(array $data): array
-    {
-        $items = [];
-        $count = count($data['sku_code']);
-
-        for ($i = 0; $i < $count; $i++) {
-            
-            $items[] = [
-                'sku_code' => $data['sku_code'][$i],
-                'price' => $data['unit_price'][$i],
-                'uom' => $data['uom'][$i],
-                'sku_type' => null,
-                'ref_item' => null,
-                'qty' => $data['quantity'][$i],
-            ];
-        }
-
-        return $items;
-    }
-
-    /**
-     * Create an order item
-     */
-    private function createOrderItem(Order $order, array $itemData): OrderItem
-    {
-        return OrderItem::create(['order_slip_number' => $order->order_slip_number, ...$itemData]);
     }
 }

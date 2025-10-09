@@ -17,7 +17,7 @@ class OrderEntryDetailsController extends Controller
     public function getOrderTypes()
     {
         $data = OrderType::all()->map(fn($row) => [
-            'value' => strtoupper($row->title),
+            'value' => $row->ot_code,
             'label' => $row->title,
         ]);
         return response()->json($data);
