@@ -26,6 +26,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Check, Pencil, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Toaster, toast } from 'sonner'
 import * as z from 'zod';
 
 type Option = { value: string; label: string };
@@ -141,6 +142,9 @@ export default function CreateOrder() {
             }
         }
 
+        toast("Item has been added to cart.", {
+            description:  cartItems[cartItems.length-1].sku_label
+        })
         form.resetField('sku_code');
         form.resetField('uom');
         form.resetField('unit_price');
@@ -220,6 +224,7 @@ export default function CreateOrder() {
                 console.log(response);
                 handleClearItemSelection();
                 setOrderSlipNumber(generateOrderSlipNumber)
+                toast("Order has been submitted.")
             })
             .catch((error) => console.error('Error fetching options:', error))
     }
@@ -336,6 +341,7 @@ export default function CreateOrder() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create Order" />
+            <Toaster position="top-center"/>
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                     <div className="relative col-span-2 overflow-hidden rounded-xl border border-sidebar-border/70 p-8.5 dark:border-sidebar-border">
