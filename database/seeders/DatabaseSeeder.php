@@ -39,5 +39,7 @@ class DatabaseSeeder extends Seeder
                 "created_at" => now()
             ]
         ], ["ot_code"]);
+
+        $this->call(JobListingSeeder::class);
     }
 }
