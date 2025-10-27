@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\OrderEntryDetailsController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReportController;
@@ -25,6 +26,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+
+// Auth routes
+Route::post('api/login', [AuthController::class, 'login']);
+Route::post('api/logout', [AuthController::class, 'logout']);
 
 
 // Report Routes
